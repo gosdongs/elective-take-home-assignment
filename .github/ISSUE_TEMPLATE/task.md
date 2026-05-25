@@ -1,8 +1,8 @@
 ---
 name: Task
 about: Create a task for work that needs to be completed.
-title: ''
-labels: ''
+title: '[Task]'
+labels: 'task'
 assignees: ''
 
 ---
