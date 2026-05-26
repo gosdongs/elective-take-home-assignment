@@ -1,0 +1,22 @@
+{
+  // Use this config when VS Code is opened at the repository root.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "pwa-chrome",
+      "request": "launch",
+      "name": "Debug Vite Client",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "/src/*": "${webRoot}/src/*",
+        "vite:///src/*": "${webRoot}/src/*"
+      },
+      "resolveSourceMapLocations": [
+        "${webRoot}/**",
+        "!**/node_modules/**"
+      ]
+    }
+  ]
+}
