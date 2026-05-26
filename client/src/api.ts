@@ -54,6 +54,11 @@ export interface TakeCreatorsResponse {
   waiting_list: WaitingListResponse;
 }
 
+export interface RemoveCreatorResponse {
+  removed_creator: RemovedCreator;
+  waiting_list: WaitingListResponse;
+}
+
 export async function getWaitingList(): Promise<WaitingListResponse> {
   return apiRequest<WaitingListResponse>("/api/waiting-list");
 }
@@ -76,6 +81,13 @@ export async function takeCreators(count: number, removalReason?: string): Promi
   return apiRequest<TakeCreatorsResponse>("/api/waiting-list/take", {
     method: "POST",
     body: JSON.stringify({ count, removal_reason: removalReason })
+  });
+}
+
+export async function removeCreator(creatorId: string, removalReason: string): Promise<RemoveCreatorResponse> {
+  return apiRequest<RemoveCreatorResponse>(`/api/waiting-list/creators/${encodeURIComponent(creatorId)}/remove`, {
+    method: "POST",
+    body: JSON.stringify({ removal_reason: removalReason })
   });
 }
 

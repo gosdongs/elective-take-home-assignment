@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Route, SuccessResponse, Tags } from "tsoa";
+import { Body, Controller, Get, Path, Post, Route, SuccessResponse, Tags } from "tsoa";
 import type {
   AddCreatorsRequest,
   AddCreatorsResponse,
   CountResponse,
   CreateWaitingListRequest,
+  RemoveCreatorRequest,
+  RemoveCreatorResponse,
   TakeCreatorsRequest,
   TakeCreatorsResponse,
   WaitingListResponse
@@ -38,5 +40,13 @@ export class WaitingListController extends Controller {
   @Post("take")
   public takeCreators(@Body() request: TakeCreatorsRequest): TakeCreatorsResponse {
     return waitingListService.takeCreators(request.count, request.removal_reason);
+  }
+
+  @Post("creators/{creatorId}/remove")
+  public removeCreator(
+    @Path() creatorId: string,
+    @Body() request: RemoveCreatorRequest
+  ): RemoveCreatorResponse {
+    return waitingListService.removeCreator(creatorId, request.removal_reason);
   }
 }

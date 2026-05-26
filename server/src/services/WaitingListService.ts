@@ -3,6 +3,7 @@ import type {
   CohortSummary,
   CountResponse,
   CreateCreatorRequest,
+  RemoveCreatorResponse,
   RemovedCreator,
   TakeCreatorsResponse,
   WaitingListResponse
@@ -80,28 +81,32 @@ export class WaitingListService {
       const removedAt = new Date().toISOString();
 
       for (const membership of activeMemberships.slice(0, removeCount)) {
-        membership.removed_at = removedAt;
-        membership.removal_reason = reason;
-
-        const creator = this.creators.get(membership.creator_id);
-        if (creator) {
-          removedCreators.push({
-            ...creator,
-            creator_cohort: { ...membership }
-          });
-        }
+        removedCreators.push(this.removeCreatorMembership(membership, reason, removedAt));
       }
 
       remainingToRemove -= removeCount;
-
-      if (this.getActiveMembershipsForCohort(oldestCohortId).length === 0) {
-        this.cohortOrder.pop();
-      }
     }
 
     return {
       removed_count: removedCreators.length,
       removed_creators: removedCreators,
+      waiting_list: this.getWaitingList()
+    };
+  }
+
+  public removeCreator(creatorId: string, removalReason: string): RemoveCreatorResponse {
+    const normalizedCreatorId = this.normalizeCreatorId(creatorId);
+    const reason = this.normalizeRequiredRemovalReason(removalReason);
+    const membership = this.getActiveMembershipForCreator(normalizedCreatorId);
+
+    if (!membership) {
+      throw new DomainError(`Creator ${normalizedCreatorId} is not active in a cohort.`, 404);
+    }
+
+    const removedCreator = this.removeCreatorMembership(membership, reason, new Date().toISOString());
+
+    return {
+      removed_creator: removedCreator,
       waiting_list: this.getWaitingList()
     };
   }
@@ -189,6 +194,35 @@ export class WaitingListService {
     );
   }
 
+  private getActiveMembershipForCreator(creatorId: string): CreatorCohort | undefined {
+    return Array.from(this.creatorCohorts.values()).find(
+      (membership) => membership.creator_id === creatorId && !membership.removed_at
+    );
+  }
+
+  private removeCreatorMembership(membership: CreatorCohort, reason: string, removedAt: string): RemovedCreator {
+    membership.removed_at = removedAt;
+    membership.removal_reason = reason;
+
+    const creator = this.creators.get(membership.creator_id);
+    if (!creator) {
+      throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
+    }
+
+    this.removeCohortFromOrderIfEmpty(membership.cohort_id);
+
+    return {
+      ...creator,
+      creator_cohort: { ...membership }
+    };
+  }
+
+  private removeCohortFromOrderIfEmpty(cohortId: string): void {
+    if (this.getActiveMembershipsForCohort(cohortId).length === 0) {
+      this.cohortOrder = this.cohortOrder.filter((currentCohortId) => currentCohortId !== cohortId);
+    }
+  }
+
   private toCohortSummary(cohortId: string): CohortSummary {
     const cohort = this.cohorts.get(cohortId);
     if (!cohort) {
@@ -242,6 +276,22 @@ export class WaitingListService {
   private normalizeRemovalReason(removalReason: string): string {
     const normalized = removalReason.trim();
     return normalized.length > 0 ? normalized : DEFAULT_REMOVAL_REASON;
+  }
+
+  private normalizeRequiredRemovalReason(removalReason: string): string {
+    if (typeof removalReason !== "string" || removalReason.trim().length === 0) {
+      throw new DomainError("removal_reason is required.");
+    }
+
+    return removalReason.trim();
+  }
+
+  private normalizeCreatorId(creatorId: string): string {
+    if (typeof creatorId !== "string" || creatorId.trim().length === 0) {
+      throw new DomainError("creator_id is required.");
+    }
+
+    return creatorId.trim();
   }
 }
 

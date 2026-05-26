@@ -104,6 +104,47 @@ describe("WaitingListService", () => {
     expect(service.getWaitingList().cohorts[1].creators.map((creator) => creator.name)).toEqual(["Creator 2"]);
   });
 
+  it("removes a specific active creator with a supplied reason", () => {
+    const service = new WaitingListService();
+    service.createWaitingList(2);
+    service.addCreators(creators(3));
+
+    const response = service.removeCreator("creator_1", "duplicate application");
+
+    expect(response.removed_creator.name).toBe("Creator 1");
+    expect(response.removed_creator.creator_cohort.removal_reason).toBe("duplicate application");
+    expect(response.waiting_list.total_creators_waiting).toBe(2);
+    expect(cohortCounts(service)).toEqual([1, 1]);
+    expect(service.getWaitingList().cohorts[1].creators.map((creator) => creator.name)).toEqual(["Creator 2"]);
+  });
+
+  it("removes an empty cohort after the last active creator is removed directly", () => {
+    const service = new WaitingListService();
+    service.createWaitingList(2);
+    service.addCreators(creators(3));
+
+    service.removeCreator("creator_3", "not a fit");
+
+    expect(cohortCounts(service)).toEqual([2]);
+    expect(service.getWaitingList().cohorts[0].creators.map((creator) => creator.name)).toEqual([
+      "Creator 1",
+      "Creator 2"
+    ]);
+  });
+
+  it("requires a reason and an active creator for direct removal", () => {
+    const service = new WaitingListService();
+    service.addCreators(creators(1));
+
+    expect(() => service.removeCreator("creator_1", " ")).toThrow("removal_reason is required.");
+
+    service.removeCreator("creator_1", "duplicate application");
+
+    expect(() => service.removeCreator("creator_1", "duplicate application")).toThrow(
+      "Creator creator_1 is not active in a cohort."
+    );
+  });
+
   it("handles zero-count take requests as a no-op", () => {
     const service = new WaitingListService();
     service.addCreators(creators(2));

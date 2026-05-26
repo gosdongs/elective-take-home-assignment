@@ -75,6 +75,44 @@ describe("waiting list API", () => {
     expect(response.body.paths["/waiting-list"]).toBeDefined();
   });
 
+  it("removes a specific active creator with a supplied reason", async () => {
+    await request(app).post("/api/waiting-list").send({ capacity: 2 }).expect(201);
+    await request(app).post("/api/waiting-list/creators").send({ creators: creators(3) }).expect(200);
+
+    const removeResponse = await request(app)
+      .post("/api/waiting-list/creators/creator_1/remove")
+      .send({ removal_reason: "duplicate application" })
+      .expect(200);
+
+    expect(removeResponse.body.removed_creator).toEqual(
+      expect.objectContaining({
+        name: "API Creator 1",
+        email_address: "api-creator-1@example.com"
+      })
+    );
+    expect(removeResponse.body.removed_creator.creator_cohort.removal_reason).toBe("duplicate application");
+    expect(removeResponse.body.waiting_list.total_creators_waiting).toBe(2);
+    expect(removeResponse.body.waiting_list.cohorts.map((cohort: { creator_count: number }) => cohort.creator_count)).toEqual([
+      1,
+      1
+    ]);
+    expect(removeResponse.body.waiting_list.cohorts[1].creators.map((creator: { name: string }) => creator.name)).toEqual([
+      "API Creator 2"
+    ]);
+  });
+
+  it("rejects direct removal without a reason", async () => {
+    await request(app).post("/api/waiting-list").send({ capacity: 10 }).expect(201);
+    await request(app).post("/api/waiting-list/creators").send({ creators: creators(1) }).expect(200);
+
+    const response = await request(app)
+      .post("/api/waiting-list/creators/creator_1/remove")
+      .send({ removal_reason: " " })
+      .expect(400);
+
+    expect(response.body.message).toBe("removal_reason is required.");
+  });
+
   it("returns runtime validation errors from tsoa", async () => {
     const response = await request(app).post("/api/waiting-list/take").send({}).expect(422);
 

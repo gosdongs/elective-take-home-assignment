@@ -86,6 +86,14 @@ input {
 .cohort-creator {
   border-top: 1px solid $line;
   padding-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cohort-creator-details {
+  min-width: 0;
+  flex: 1;
 }
 
 .creator-row {

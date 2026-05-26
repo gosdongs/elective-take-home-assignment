@@ -73,6 +73,19 @@ const afterTakeWaitingList: WaitingListResponse = {
   ]
 };
 
+const afterRemoveWaitingList: WaitingListResponse = {
+  ...initialWaitingList,
+  total_creators_waiting: 12,
+  cohorts: [
+    {
+      ...initialWaitingList.cohorts[0],
+      creator_count: 2,
+      creators: initialWaitingList.cohorts[0].creators.slice(1)
+    },
+    initialWaitingList.cohorts[1]
+  ]
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(mockFetch));
 });
@@ -123,6 +136,21 @@ describe("App", () => {
     expect(await screen.findByText("4 creators taken.")).toBeInTheDocument();
     expect(screen.getByText("9 waiting")).toBeInTheDocument();
     expect(screen.getByText("Removed Creator")).toBeInTheDocument();
+  });
+
+  it("removes a displayed creator with a supplied reason", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await screen.findByText("13 waiting");
+    await user.click(screen.getByRole("button", { name: "Remove Creator 11" }));
+    await user.type(await screen.findByLabelText("Removal reason"), "duplicate application");
+    await user.click(screen.getByRole("button", { name: "Remove Creator" }));
+
+    expect(await screen.findByText("Creator 11 removed.")).toBeInTheDocument();
+    expect(screen.getByText("12 waiting")).toBeInTheDocument();
+    expect(screen.getByText("2 / 10")).toBeInTheDocument();
+    expect(screen.getByText("duplicate application")).toBeInTheDocument();
   });
 });
 
@@ -181,6 +209,24 @@ function mockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
         }
       ],
       waiting_list: afterTakeWaitingList
+    });
+  }
+
+  if (url === "/api/waiting-list/creators/creator_11/remove" && method === "POST") {
+    return jsonResponse({
+      removed_creator: {
+        ...initialCreators[10],
+        creator_cohort: {
+          id: "creator_cohort_11",
+          creator_id: "creator_11",
+          cohort_id: "cohort_2",
+          added_at: "2026-05-25T00:00:00.000Z",
+          created_at: "2026-05-25T00:00:00.000Z",
+          removed_at: "2026-05-25T00:00:00.000Z",
+          removal_reason: "duplicate application"
+        }
+      },
+      waiting_list: afterRemoveWaitingList
     });
   }
 

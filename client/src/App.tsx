@@ -9,12 +9,14 @@ import {
   Divider,
   Group,
   Loader,
+  Modal,
   NumberInput,
   Paper,
   SimpleGrid,
   Stack,
   Table,
   Text,
+  Textarea,
   TextInput,
   Title,
   Tooltip
@@ -24,13 +26,19 @@ import {
   addCreators,
   createWaitingList,
   getWaitingList,
+  removeCreator,
   takeCreators,
+  type Creator,
   type CreatorInput,
   type RemovedCreator,
   type WaitingListResponse
 } from "./api";
 
 type CreatorFormRow = CreatorInput;
+type CreatorRemovalTarget = {
+  creator: Creator;
+  cohortName: string;
+};
 
 const emptyCreatorRow: CreatorFormRow = {
   name: "",
@@ -45,6 +53,9 @@ function App() {
   const [capacity, setCapacity] = useState<number | string>(10);
   const [takeCount, setTakeCount] = useState<number | string>(1);
   const [recentlyRemoved, setRecentlyRemoved] = useState<RemovedCreator[]>([]);
+  const [creatorRemovalTarget, setCreatorRemovalTarget] = useState<CreatorRemovalTarget | null>(null);
+  const [creatorRemovalReason, setCreatorRemovalReason] = useState("");
+  const [creatorRemovalReasonError, setCreatorRemovalReasonError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +124,28 @@ function App() {
     });
   }
 
+  async function handleRemoveCreator(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!creatorRemovalTarget) {
+      return;
+    }
+
+    const removalReason = creatorRemovalReason.trim();
+    if (removalReason.length === 0) {
+      setCreatorRemovalReasonError("Enter a removal reason.");
+      return;
+    }
+
+    await runAction(async () => {
+      const response = await removeCreator(creatorRemovalTarget.creator.id, removalReason);
+      setWaitingList(response.waiting_list);
+      setRecentlyRemoved((current) => [response.removed_creator, ...current].slice(0, 8));
+      setMessage(`${response.removed_creator.name} removed.`);
+      closeRemoveCreatorDialog();
+    });
+  }
+
   async function runAction(action: () => Promise<void>) {
     setIsLoading(true);
     setError(null);
@@ -141,8 +174,59 @@ function App() {
     setCreatorRows((currentRows) => currentRows.filter((_row, currentIndex) => currentIndex !== index));
   }
 
+  function openRemoveCreatorDialog(creator: Creator, cohortName: string) {
+    setCreatorRemovalTarget({ creator, cohortName });
+    setCreatorRemovalReason("");
+    setCreatorRemovalReasonError(null);
+  }
+
+  function closeRemoveCreatorDialog() {
+    setCreatorRemovalTarget(null);
+    setCreatorRemovalReason("");
+    setCreatorRemovalReasonError(null);
+  }
+
   return (
     <Box className="app-shell">
+      <Modal
+        opened={creatorRemovalTarget !== null}
+        onClose={closeRemoveCreatorDialog}
+        title="Remove Creator"
+        centered
+        radius="sm"
+      >
+        <form onSubmit={handleRemoveCreator}>
+          <Stack gap="md">
+            <Box>
+              <Text fw={700}>{creatorRemovalTarget?.creator.name}</Text>
+              <Text size="sm" c="dimmed">
+                {creatorRemovalTarget?.cohortName}
+              </Text>
+            </Box>
+            <Textarea
+              label="Removal reason"
+              aria-label="Removal reason"
+              value={creatorRemovalReason}
+              error={creatorRemovalReasonError}
+              minRows={3}
+              required
+              onChange={(event) => {
+                setCreatorRemovalReason(event.currentTarget.value);
+                setCreatorRemovalReasonError(null);
+              }}
+            />
+            <Group justify="flex-end">
+              <Button type="button" variant="default" onClick={closeRemoveCreatorDialog} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button type="submit" color="red" leftSection={<Trash2 size={16} />} loading={isLoading}>
+                Remove Creator
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
+
       <Container size="xl" py="xl">
         <Stack gap="lg">
           <Group justify="space-between" align="flex-end" gap="md" className="page-header">
@@ -250,18 +334,32 @@ function App() {
                           <Stack gap={6} className="cohort-creators">
                             {cohort.creators.map((creator) => (
                               <Box className="cohort-creator" key={creator.id}>
-                                <Text size="sm" fw={700} truncate="end">
-                                  {creator.name}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate="end">
-                                  {creator.course_type}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate="end">
-                                  {creator.email_address}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate="end">
-                                  {creator.phone_number}
-                                </Text>
+                                <Box className="cohort-creator-details">
+                                  <Text size="sm" fw={700} truncate="end">
+                                    {creator.name}
+                                  </Text>
+                                  <Text size="xs" c="dimmed" truncate="end">
+                                    {creator.course_type}
+                                  </Text>
+                                  <Text size="xs" c="dimmed" truncate="end">
+                                    {creator.email_address}
+                                  </Text>
+                                  <Text size="xs" c="dimmed" truncate="end">
+                                    {creator.phone_number}
+                                  </Text>
+                                </Box>
+                                <Tooltip label={`Remove ${creator.name}`}>
+                                  <ActionIcon
+                                    aria-label={`Remove ${creator.name}`}
+                                    variant="subtle"
+                                    color="red"
+                                    size="sm"
+                                    disabled={isLoading}
+                                    onClick={() => openRemoveCreatorDialog(creator, cohort.name)}
+                                  >
+                                    <Trash2 size={15} />
+                                  </ActionIcon>
+                                </Tooltip>
                               </Box>
                             ))}
                           </Stack>

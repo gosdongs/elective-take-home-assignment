@@ -20,6 +20,10 @@ export interface TakeCreatorsRequest {
   removal_reason?: string;
 }
 
+export interface RemoveCreatorRequest {
+  removal_reason: string;
+}
+
 export interface CohortSummary extends Cohort {
   creator_count: number;
   creators: Creator[];
@@ -43,6 +47,11 @@ export interface RemovedCreator extends Creator {
 export interface TakeCreatorsResponse {
   removed_count: number;
   removed_creators: RemovedCreator[];
+  waiting_list: WaitingListResponse;
+}
+
+export interface RemoveCreatorResponse {
+  removed_creator: RemovedCreator;
   waiting_list: WaitingListResponse;
 }
 
