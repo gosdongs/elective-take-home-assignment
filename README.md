@@ -1,5 +1,33 @@
 # Cohort Management Web Application
 
+## Running in Development
+
+This project was built and tested with Node.js `22.14.0`.
+
+Install dependencies from the repository root:
+
+```bash
+npm install
+```
+
+Run the backend API:
+
+```bash
+npm run dev -w server
+```
+
+The API runs on `http://localhost:3000`. Swagger UI is available at `http://localhost:3000/api/docs`.
+
+Run the frontend in a separate terminal when you want to test the full application:
+
+```bash
+npm run dev -w client
+```
+
+The React app runs on `http://localhost:5173` and proxies `/api` requests to the backend on port `3000`.
+
+There is intentionally no root `dev` script that starts both apps together. Run only the workspace you need while developing, or run both manually when testing the full UI flow.
+
 ## API Error and Edge Case Strategy
 
 For the current in-memory V1 scope, the API handles the obvious request and business-rule edge cases.
