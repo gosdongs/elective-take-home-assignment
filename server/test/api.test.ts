@@ -128,6 +128,16 @@ describe("waiting list API", () => {
         expect(response.body.details).toBeDefined();
     });
 
+    it("returns a 400 for malformed JSON bodies", async () => {
+        const response = await request(app)
+            .post("/api/waiting-list/take")
+            .set("Content-Type", "application/json")
+            .send("{")
+            .expect(400);
+
+        expect(response.body.message).toBe("Malformed JSON request body.");
+    });
+
     it("returns domain validation errors from the service", async () => {
         const response = await request(app).post("/api/waiting-list").send({capacity: 0}).expect(400);
 
