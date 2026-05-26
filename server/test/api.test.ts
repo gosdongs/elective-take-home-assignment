@@ -28,6 +28,26 @@ describe("waiting list API", () => {
       3,
       10
     ]);
+    expect(addResponse.body.waiting_list.cohorts[0].creators).toEqual([
+      expect.objectContaining({
+        name: "API Creator 11",
+        email_address: "api-creator-11@example.com",
+        phone_number: "555-02010",
+        course_type: "workshop"
+      }),
+      expect.objectContaining({
+        name: "API Creator 12",
+        email_address: "api-creator-12@example.com",
+        phone_number: "555-02011",
+        course_type: "workshop"
+      }),
+      expect.objectContaining({
+        name: "API Creator 13",
+        email_address: "api-creator-13@example.com",
+        phone_number: "555-02012",
+        course_type: "workshop"
+      })
+    ]);
 
     const takeResponse = await request(app)
       .post("/api/waiting-list/take")
@@ -39,6 +59,9 @@ describe("waiting list API", () => {
       3,
       6
     ]);
+    expect(takeResponse.body.waiting_list.cohorts[1].creators[0]).toEqual(
+      expect.objectContaining({ name: "API Creator 5" })
+    );
 
     const countResponse = await request(app).get("/api/waiting-list/count").expect(200);
     expect(countResponse.body).toEqual({ total_creators_waiting: 9 });

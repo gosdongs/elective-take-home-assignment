@@ -80,6 +80,30 @@ describe("WaitingListService", () => {
     expect(removedMemberships[0].removal_reason).toBe("manual review");
   });
 
+  it("includes active creator details in cohort summaries", () => {
+    const service = new WaitingListService();
+    service.createWaitingList(2);
+
+    service.addCreators(creators(3));
+    const waitingList = service.getWaitingList();
+
+    expect(waitingList.cohorts[0].creator_count).toBe(1);
+    expect(waitingList.cohorts[0].creators).toEqual([
+      expect.objectContaining({
+        name: "Creator 3",
+        email_address: "creator3@example.com",
+        phone_number: "555-0102",
+        course_type: "cohort-based"
+      })
+    ]);
+    expect(waitingList.cohorts[1].creator_count).toBe(2);
+    expect(waitingList.cohorts[1].creators.map((creator) => creator.name)).toEqual(["Creator 1", "Creator 2"]);
+
+    service.takeCreators(1);
+
+    expect(service.getWaitingList().cohorts[1].creators.map((creator) => creator.name)).toEqual(["Creator 2"]);
+  });
+
   it("handles zero-count take requests as a no-op", () => {
     const service = new WaitingListService();
     service.addCreators(creators(2));

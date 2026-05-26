@@ -246,6 +246,26 @@ function App() {
                         <Text size="sm" c="dimmed">
                           {cohort.creator_count} / {cohort.capacity}
                         </Text>
+                        {cohort.creators.length > 0 ? (
+                          <Stack gap={6} className="cohort-creators">
+                            {cohort.creators.map((creator) => (
+                              <Box className="cohort-creator" key={creator.id}>
+                                <Text size="sm" fw={700} truncate="end">
+                                  {creator.name}
+                                </Text>
+                                <Text size="xs" c="dimmed" truncate="end">
+                                  {creator.course_type}
+                                </Text>
+                                <Text size="xs" c="dimmed" truncate="end">
+                                  {creator.email_address}
+                                </Text>
+                                <Text size="xs" c="dimmed" truncate="end">
+                                  {creator.phone_number}
+                                </Text>
+                              </Box>
+                            ))}
+                          </Stack>
+                        ) : null}
                       </div>
                     );
                   })}

@@ -48,14 +48,14 @@ input {
 .cohort-strip {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(172px, 1fr);
+  grid-auto-columns: minmax(240px, 1fr);
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
 
 .cohort-tile {
-  min-height: 144px;
+  min-height: 220px;
   border: 1px solid $line;
   border-top: 4px solid $indigo;
   border-radius: 8px;
@@ -63,7 +63,7 @@ input {
   background: #fbfcfd;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 10px;
 }
 
 .cohort-tile--oldest {
@@ -76,6 +76,16 @@ input {
   line-height: 1;
   font-weight: 800;
   color: $ink;
+}
+
+.cohort-creators {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.cohort-creator {
+  border-top: 1px solid $line;
+  padding-top: 8px;
 }
 
 .creator-row {
@@ -106,7 +116,7 @@ input {
   }
 
   .cohort-strip {
-    grid-auto-columns: minmax(148px, 82vw);
+    grid-auto-columns: minmax(240px, 82vw);
   }
 
   .cohort-count {

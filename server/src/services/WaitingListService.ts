@@ -195,9 +195,20 @@ export class WaitingListService {
       throw new DomainError(`Cohort ${cohortId} was not found.`, 500);
     }
 
+    const activeMemberships = this.getActiveMembershipsForCohort(cohortId);
+    const creators = activeMemberships.map((membership) => {
+      const creator = this.creators.get(membership.creator_id);
+      if (!creator) {
+        throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
+      }
+
+      return { ...creator };
+    });
+
     return {
       ...cohort,
-      creator_count: this.getActiveMembershipsForCohort(cohortId).length
+      creator_count: activeMemberships.length,
+      creators
     };
   }
 

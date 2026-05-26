@@ -34,6 +34,7 @@ export interface CohortSummary {
   capacity: number;
   created_at: string;
   creator_count: number;
+  creators: Creator[];
 }
 
 export interface WaitingListResponse {

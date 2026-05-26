@@ -5,6 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { WaitingListResponse } from "./api";
 
+const initialCreators = Array.from({ length: 13 }, (_, index) => ({
+  id: `creator_${index + 1}`,
+  name: `Creator ${index + 1}`,
+  email_address: `creator-${index + 1}@example.com`,
+  phone_number: `555-010${index}`,
+  course_type: index % 2 === 0 ? "analytics" : "workshop",
+  created_at: "2026-05-25T00:00:00.000Z"
+}));
+
 const initialWaitingList: WaitingListResponse = {
   capacity: 10,
   total_creators_waiting: 13,
@@ -14,14 +23,16 @@ const initialWaitingList: WaitingListResponse = {
       name: "Cohort 2",
       capacity: 10,
       created_at: "2026-05-25T00:00:00.000Z",
-      creator_count: 3
+      creator_count: 3,
+      creators: initialCreators.slice(10)
     },
     {
       id: "cohort_1",
       name: "Cohort 1",
       capacity: 10,
       created_at: "2026-05-25T00:00:00.000Z",
-      creator_count: 10
+      creator_count: 10,
+      creators: initialCreators.slice(0, 10)
     }
   ]
 };
@@ -32,7 +43,18 @@ const afterAddWaitingList: WaitingListResponse = {
   cohorts: [
     {
       ...initialWaitingList.cohorts[0],
-      creator_count: 4
+      creator_count: 4,
+      creators: [
+        ...initialWaitingList.cohorts[0].creators,
+        {
+          id: "creator_14",
+          name: "Ada Lovelace",
+          email_address: "ada@example.com",
+          phone_number: "555-1234",
+          course_type: "analytics",
+          created_at: "2026-05-25T00:00:00.000Z"
+        }
+      ]
     },
     initialWaitingList.cohorts[1]
   ]
@@ -45,7 +67,8 @@ const afterTakeWaitingList: WaitingListResponse = {
     initialWaitingList.cohorts[0],
     {
       ...initialWaitingList.cohorts[1],
-      creator_count: 6
+      creator_count: 6,
+      creators: initialWaitingList.cohorts[1].creators.slice(4)
     }
   ]
 };
@@ -65,6 +88,9 @@ describe("App", () => {
     expect(await screen.findByText("13 waiting")).toBeInTheDocument();
     expect(screen.getByText("Cohort 2")).toBeInTheDocument();
     expect(screen.getByText("10 / 10")).toBeInTheDocument();
+    expect(screen.getByText("Creator 11")).toBeInTheDocument();
+    expect(screen.getByText("creator-11@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("analytics").length).toBeGreaterThan(0);
     expect(screen.getByText("Next")).toBeInTheDocument();
   });
 
@@ -82,6 +108,9 @@ describe("App", () => {
 
     expect(await screen.findByText("1 creator added.")).toBeInTheDocument();
     expect(screen.getByText("14 waiting")).toBeInTheDocument();
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText("ada@example.com")).toBeInTheDocument();
+    expect(screen.getByText("555-1234")).toBeInTheDocument();
   });
 
   it("takes creators and shows recently removed rows", async () => {

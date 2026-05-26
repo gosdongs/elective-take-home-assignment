@@ -22,6 +22,7 @@ export interface TakeCreatorsRequest {
 
 export interface CohortSummary extends Cohort {
   creator_count: number;
+  creators: Creator[];
 }
 
 export interface WaitingListResponse {
