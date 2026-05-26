@@ -11,6 +11,15 @@ function creators(count: number): CreateCreatorRequest[] {
   }));
 }
 
+function namedCreators(names: string[]): CreateCreatorRequest[] {
+  return names.map((name, index) => ({
+    name,
+    email_address: `${name.toLowerCase().replaceAll(" ", "-")}@example.com`,
+    phone_number: `555-030${index}`,
+    course_type: "cohort-based"
+  }));
+}
+
 function cohortCounts(service: WaitingListService): number[] {
   return service.getWaitingList().cohorts.map((cohort) => cohort.creator_count);
 }
@@ -54,6 +63,24 @@ describe("WaitingListService", () => {
     expect(response.removed_count).toBe(5);
     expect(cohortCounts(service)).toEqual([1, 1]);
     expect(service.getCount().total_creators_waiting).toBe(2);
+  });
+
+  it("adds creators to the oldest partial cohort before newer cohorts", () => {
+    const service = new WaitingListService();
+    service.createWaitingList(10);
+
+    service.addCreators(creators(38));
+    service.takeCreators(11);
+    expect(cohortCounts(service)).toEqual([8, 10, 9]);
+
+    service.addCreators(namedCreators(["New Creator A", "New Creator B", "New Creator C"]));
+
+    expect(cohortCounts(service)).toEqual([10, 10, 10]);
+    expect(service.getWaitingList().cohorts[2].creators.at(-1)?.name).toBe("New Creator A");
+    expect(service.getWaitingList().cohorts[0].creators.slice(-2).map((creator) => creator.name)).toEqual([
+      "New Creator B",
+      "New Creator C"
+    ]);
   });
 
   it("takes no more than the available creators", () => {

@@ -54,7 +54,7 @@ export class WaitingListService {
       this.assertValidCreatorRequest(request);
 
       const creator = this.createCreator(request);
-      const cohort = this.findNewestCohortWithSpace() ?? this.createCohort();
+      const cohort = this.findOldestCohortWithSpace() ?? this.createCohort();
 
       this.creators.set(creator.id, creator);
       this.addCreatorToCohort(creator.id, cohort.id);
@@ -170,18 +170,15 @@ export class WaitingListService {
     this.creatorCohorts.set(creatorCohort.id, creatorCohort);
   }
 
-  private findNewestCohortWithSpace(): Cohort | undefined {
-    const newestCohortId = this.cohortOrder[0];
-    if (!newestCohortId) {
-      return undefined;
+  private findOldestCohortWithSpace(): Cohort | undefined {
+    for (let index = this.cohortOrder.length - 1; index >= 0; index -= 1) {
+      const cohort = this.cohorts.get(this.cohortOrder[index]);
+      if (cohort && this.getActiveMembershipsForCohort(cohort.id).length < cohort.capacity) {
+        return cohort;
+      }
     }
 
-    const cohort = this.cohorts.get(newestCohortId);
-    if (!cohort) {
-      return undefined;
-    }
-
-    return this.getActiveMembershipsForCohort(cohort.id).length < cohort.capacity ? cohort : undefined;
+    return undefined;
   }
 
   private getTotalCreatorsWaiting(): number {
