@@ -145,4 +145,6 @@ vite.config.ts.timestamp-*
 # Generated API artifacts
 server/src/generated/
 server/dist/
+
+# Generated Vite build artificats
 client/dist/
