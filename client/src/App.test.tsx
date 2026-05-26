@@ -104,7 +104,6 @@ describe("App", () => {
         expect(screen.getByText("Creator 11")).toBeInTheDocument();
         expect(screen.getByText("creator-11@example.com")).toBeInTheDocument();
         expect(screen.getAllByText("analytics").length).toBeGreaterThan(0);
-        expect(screen.getByText("Next")).toBeInTheDocument();
     });
 
     it("submits a creator and updates the waiting count", async () => {

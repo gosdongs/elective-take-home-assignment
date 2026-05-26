@@ -322,11 +322,6 @@ function App() {
                                                  key={cohort.id}>
                                                 <Group justify="space-between" align="center" wrap="nowrap">
                                                     <Text fw={700}>{cohort.name}</Text>
-                                                    {isOldest ? (
-                                                        <Badge color="orange" radius="sm">
-                                                            Next
-                                                        </Badge>
-                                                    ) : null}
                                                 </Group>
                                                 <Text className="cohort-count">{cohort.creator_count}</Text>
                                                 <Text size="sm" c="dimmed">
