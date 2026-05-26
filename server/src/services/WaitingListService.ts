@@ -1,295 +1,295 @@
 import type {
-  AddCreatorsResponse,
-  CohortSummary,
-  CountResponse,
-  CreateCreatorRequest,
-  RemoveCreatorResponse,
-  RemovedCreator,
-  TakeCreatorsResponse,
-  WaitingListResponse
+    AddCreatorsResponse,
+    CohortSummary,
+    CountResponse,
+    CreateCreatorRequest,
+    RemoveCreatorResponse,
+    RemovedCreator,
+    TakeCreatorsResponse,
+    WaitingListResponse
 } from "../models/api";
-import type { Cohort, Creator, CreatorCohort } from "../models/domain";
-import { DomainError } from "./DomainError";
+import type {Cohort, Creator, CreatorCohort} from "../models/domain";
+import {DomainError} from "./DomainError";
 
 const DEFAULT_CAPACITY = 10;
 const DEFAULT_REMOVAL_REASON = "onboarded";
 
 export class WaitingListService {
-  private capacity = DEFAULT_CAPACITY;
-  private creators = new Map<string, Creator>();
-  private cohorts = new Map<string, Cohort>();
-  private creatorCohorts = new Map<string, CreatorCohort>();
-  private cohortOrder: string[] = [];
-  private creatorSequence = 1;
-  private cohortSequence = 1;
-  private creatorCohortSequence = 1;
+    private capacity = DEFAULT_CAPACITY;
+    private creators = new Map<string, Creator>();
+    private cohorts = new Map<string, Cohort>();
+    private creatorCohorts = new Map<string, CreatorCohort>();
+    private cohortOrder: string[] = [];
+    private creatorSequence = 1;
+    private cohortSequence = 1;
+    private creatorCohortSequence = 1;
 
-  public constructor() {
-    this.createWaitingList();
-  }
-
-  public createWaitingList(capacity = DEFAULT_CAPACITY): WaitingListResponse {
-    this.assertPositiveInteger(capacity, "capacity");
-
-    this.capacity = capacity;
-    this.creators = new Map();
-    this.cohorts = new Map();
-    this.creatorCohorts = new Map();
-    this.cohortOrder = [];
-    this.creatorSequence = 1;
-    this.cohortSequence = 1;
-    this.creatorCohortSequence = 1;
-
-    return this.getWaitingList();
-  }
-
-  public addCreators(requests: CreateCreatorRequest[]): AddCreatorsResponse {
-    if (!Array.isArray(requests)) {
-      throw new DomainError("creators must be an array.");
+    public constructor() {
+        this.createWaitingList();
     }
 
-    const addedCreators: Creator[] = [];
+    public createWaitingList(capacity = DEFAULT_CAPACITY): WaitingListResponse {
+        this.assertPositiveInteger(capacity, "capacity");
 
-    for (const request of requests) {
-      this.assertValidCreatorRequest(request);
+        this.capacity = capacity;
+        this.creators = new Map();
+        this.cohorts = new Map();
+        this.creatorCohorts = new Map();
+        this.cohortOrder = [];
+        this.creatorSequence = 1;
+        this.cohortSequence = 1;
+        this.creatorCohortSequence = 1;
 
-      const creator = this.createCreator(request);
-      const cohort = this.findOldestCohortWithSpace() ?? this.createCohort();
-
-      this.creators.set(creator.id, creator);
-      this.addCreatorToCohort(creator.id, cohort.id);
-      addedCreators.push(creator);
+        return this.getWaitingList();
     }
 
-    return {
-      added_creators: addedCreators,
-      waiting_list: this.getWaitingList()
-    };
-  }
+    public addCreators(requests: CreateCreatorRequest[]): AddCreatorsResponse {
+        if (!Array.isArray(requests)) {
+            throw new DomainError("creators must be an array.");
+        }
 
-  public takeCreators(count: number, removalReason = DEFAULT_REMOVAL_REASON): TakeCreatorsResponse {
-    this.assertNonNegativeInteger(count, "count");
+        const addedCreators: Creator[] = [];
 
-    const removedCreators: RemovedCreator[] = [];
-    let remainingToRemove = Math.min(count, this.getTotalCreatorsWaiting());
-    const reason = this.normalizeRemovalReason(removalReason);
+        for (const request of requests) {
+            this.assertValidCreatorRequest(request);
 
-    while (remainingToRemove > 0 && this.cohortOrder.length > 0) {
-      const oldestCohortId = this.cohortOrder[this.cohortOrder.length - 1];
-      const activeMemberships = this.getActiveMembershipsForCohort(oldestCohortId);
-      const removeCount = Math.min(remainingToRemove, activeMemberships.length);
-      const removedAt = new Date().toISOString();
+            const creator = this.createCreator(request);
+            const cohort = this.findOldestCohortWithSpace() ?? this.createCohort();
 
-      for (const membership of activeMemberships.slice(0, removeCount)) {
-        removedCreators.push(this.removeCreatorMembership(membership, reason, removedAt));
-      }
+            this.creators.set(creator.id, creator);
+            this.addCreatorToCohort(creator.id, cohort.id);
+            addedCreators.push(creator);
+        }
 
-      remainingToRemove -= removeCount;
+        return {
+            added_creators: addedCreators,
+            waiting_list: this.getWaitingList()
+        };
     }
 
-    return {
-      removed_count: removedCreators.length,
-      removed_creators: removedCreators,
-      waiting_list: this.getWaitingList()
-    };
-  }
+    public takeCreators(count: number, removalReason = DEFAULT_REMOVAL_REASON): TakeCreatorsResponse {
+        this.assertNonNegativeInteger(count, "count");
 
-  public removeCreator(creatorId: string, removalReason: string): RemoveCreatorResponse {
-    const normalizedCreatorId = this.normalizeCreatorId(creatorId);
-    const reason = this.normalizeRequiredRemovalReason(removalReason);
-    const membership = this.getActiveMembershipForCreator(normalizedCreatorId);
+        const removedCreators: RemovedCreator[] = [];
+        let remainingToRemove = Math.min(count, this.getTotalCreatorsWaiting());
+        const reason = this.normalizeRemovalReason(removalReason);
 
-    if (!membership) {
-      throw new DomainError(`Creator ${normalizedCreatorId} is not active in a cohort.`, 404);
+        while (remainingToRemove > 0 && this.cohortOrder.length > 0) {
+            const oldestCohortId = this.cohortOrder[this.cohortOrder.length - 1];
+            const activeMemberships = this.getActiveMembershipsForCohort(oldestCohortId);
+            const removeCount = Math.min(remainingToRemove, activeMemberships.length);
+            const removedAt = new Date().toISOString();
+
+            for (const membership of activeMemberships.slice(0, removeCount)) {
+                removedCreators.push(this.removeCreatorMembership(membership, reason, removedAt));
+            }
+
+            remainingToRemove -= removeCount;
+        }
+
+        return {
+            removed_count: removedCreators.length,
+            removed_creators: removedCreators,
+            waiting_list: this.getWaitingList()
+        };
     }
 
-    const removedCreator = this.removeCreatorMembership(membership, reason, new Date().toISOString());
+    public removeCreator(creatorId: string, removalReason: string): RemoveCreatorResponse {
+        const normalizedCreatorId = this.normalizeCreatorId(creatorId);
+        const reason = this.normalizeRequiredRemovalReason(removalReason);
+        const membership = this.getActiveMembershipForCreator(normalizedCreatorId);
 
-    return {
-      removed_creator: removedCreator,
-      waiting_list: this.getWaitingList()
-    };
-  }
+        if (!membership) {
+            throw new DomainError(`Creator ${normalizedCreatorId} is not active in a cohort.`, 404);
+        }
 
-  public getWaitingList(): WaitingListResponse {
-    const cohorts = this.cohortOrder.map((cohortId) => this.toCohortSummary(cohortId));
+        const removedCreator = this.removeCreatorMembership(membership, reason, new Date().toISOString());
 
-    return {
-      capacity: this.capacity,
-      total_creators_waiting: this.getTotalCreatorsWaiting(),
-      cohorts
-    };
-  }
+        return {
+            removed_creator: removedCreator,
+            waiting_list: this.getWaitingList()
+        };
+    }
 
-  public getCount(): CountResponse {
-    return {
-      total_creators_waiting: this.getTotalCreatorsWaiting()
-    };
-  }
+    public getWaitingList(): WaitingListResponse {
+        const cohorts = this.cohortOrder.map((cohortId) => this.toCohortSummary(cohortId));
 
-  public getCreatorCohorts(): CreatorCohort[] {
-    return Array.from(this.creatorCohorts.values()).map((membership) => ({ ...membership }));
-  }
+        return {
+            capacity: this.capacity,
+            total_creators_waiting: this.getTotalCreatorsWaiting(),
+            cohorts
+        };
+    }
 
-  private createCreator(request: CreateCreatorRequest): Creator {
-    return {
-      id: `creator_${this.creatorSequence++}`,
-      name: request.name.trim(),
-      email_address: request.email_address.trim(),
-      phone_number: request.phone_number.trim(),
-      course_type: request.course_type.trim(),
-      created_at: new Date().toISOString()
-    };
-  }
+    public getCount(): CountResponse {
+        return {
+            total_creators_waiting: this.getTotalCreatorsWaiting()
+        };
+    }
 
-  private createCohort(): Cohort {
-    const cohort: Cohort = {
-      id: `cohort_${this.cohortSequence}`,
-      name: `Cohort ${this.cohortSequence}`,
-      capacity: this.capacity,
-      created_at: new Date().toISOString()
-    };
+    public getCreatorCohorts(): CreatorCohort[] {
+        return Array.from(this.creatorCohorts.values()).map((membership) => ({...membership}));
+    }
 
-    this.cohortSequence += 1;
-    this.cohorts.set(cohort.id, cohort);
-    this.cohortOrder.unshift(cohort.id);
+    private createCreator(request: CreateCreatorRequest): Creator {
+        return {
+            id: `creator_${this.creatorSequence++}`,
+            name: request.name.trim(),
+            email_address: request.email_address.trim(),
+            phone_number: request.phone_number.trim(),
+            course_type: request.course_type.trim(),
+            created_at: new Date().toISOString()
+        };
+    }
 
-    return cohort;
-  }
+    private createCohort(): Cohort {
+        const cohort: Cohort = {
+            id: `cohort_${this.cohortSequence}`,
+            name: `Cohort ${this.cohortSequence}`,
+            capacity: this.capacity,
+            created_at: new Date().toISOString()
+        };
 
-  private addCreatorToCohort(creatorId: string, cohortId: string): void {
-    const createdAt = new Date().toISOString();
-    const creatorCohort: CreatorCohort = {
-      id: `creator_cohort_${this.creatorCohortSequence++}`,
-      creator_id: creatorId,
-      cohort_id: cohortId,
-      added_at: createdAt,
-      created_at: createdAt
-    };
+        this.cohortSequence += 1;
+        this.cohorts.set(cohort.id, cohort);
+        this.cohortOrder.unshift(cohort.id);
 
-    this.creatorCohorts.set(creatorCohort.id, creatorCohort);
-  }
-
-  private findOldestCohortWithSpace(): Cohort | undefined {
-    for (let index = this.cohortOrder.length - 1; index >= 0; index -= 1) {
-      const cohort = this.cohorts.get(this.cohortOrder[index]);
-      if (cohort && this.getActiveMembershipsForCohort(cohort.id).length < cohort.capacity) {
         return cohort;
-      }
     }
 
-    return undefined;
-  }
+    private addCreatorToCohort(creatorId: string, cohortId: string): void {
+        const createdAt = new Date().toISOString();
+        const creatorCohort: CreatorCohort = {
+            id: `creator_cohort_${this.creatorCohortSequence++}`,
+            creator_id: creatorId,
+            cohort_id: cohortId,
+            added_at: createdAt,
+            created_at: createdAt
+        };
 
-  private getTotalCreatorsWaiting(): number {
-    return Array.from(this.creatorCohorts.values()).filter((membership) => !membership.removed_at).length;
-  }
-
-  private getActiveMembershipsForCohort(cohortId: string): CreatorCohort[] {
-    return Array.from(this.creatorCohorts.values()).filter(
-      (membership) => membership.cohort_id === cohortId && !membership.removed_at
-    );
-  }
-
-  private getActiveMembershipForCreator(creatorId: string): CreatorCohort | undefined {
-    return Array.from(this.creatorCohorts.values()).find(
-      (membership) => membership.creator_id === creatorId && !membership.removed_at
-    );
-  }
-
-  private removeCreatorMembership(membership: CreatorCohort, reason: string, removedAt: string): RemovedCreator {
-    membership.removed_at = removedAt;
-    membership.removal_reason = reason;
-
-    const creator = this.creators.get(membership.creator_id);
-    if (!creator) {
-      throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
+        this.creatorCohorts.set(creatorCohort.id, creatorCohort);
     }
 
-    this.removeCohortFromOrderIfEmpty(membership.cohort_id);
+    private findOldestCohortWithSpace(): Cohort | undefined {
+        for (let index = this.cohortOrder.length - 1; index >= 0; index -= 1) {
+            const cohort = this.cohorts.get(this.cohortOrder[index]);
+            if (cohort && this.getActiveMembershipsForCohort(cohort.id).length < cohort.capacity) {
+                return cohort;
+            }
+        }
 
-    return {
-      ...creator,
-      creator_cohort: { ...membership }
-    };
-  }
-
-  private removeCohortFromOrderIfEmpty(cohortId: string): void {
-    if (this.getActiveMembershipsForCohort(cohortId).length === 0) {
-      this.cohortOrder = this.cohortOrder.filter((currentCohortId) => currentCohortId !== cohortId);
-    }
-  }
-
-  private toCohortSummary(cohortId: string): CohortSummary {
-    const cohort = this.cohorts.get(cohortId);
-    if (!cohort) {
-      throw new DomainError(`Cohort ${cohortId} was not found.`, 500);
+        return undefined;
     }
 
-    const activeMemberships = this.getActiveMembershipsForCohort(cohortId);
-    const creators = activeMemberships.map((membership) => {
-      const creator = this.creators.get(membership.creator_id);
-      if (!creator) {
-        throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
-      }
-
-      return { ...creator };
-    });
-
-    return {
-      ...cohort,
-      creator_count: activeMemberships.length,
-      creators
-    };
-  }
-
-  private assertPositiveInteger(value: number, field: string): void {
-    if (!Number.isInteger(value) || value <= 0) {
-      throw new DomainError(`${field} must be a positive integer.`);
-    }
-  }
-
-  private assertNonNegativeInteger(value: number, field: string): void {
-    if (!Number.isInteger(value) || value < 0) {
-      throw new DomainError(`${field} must be a non-negative integer.`);
-    }
-  }
-
-  private assertValidCreatorRequest(request: CreateCreatorRequest): void {
-    const requiredFields: Array<keyof CreateCreatorRequest> = [
-      "name",
-      "email_address",
-      "phone_number",
-      "course_type"
-    ];
-
-    for (const field of requiredFields) {
-      if (typeof request[field] !== "string" || request[field].trim().length === 0) {
-        throw new DomainError(`${field} is required.`);
-      }
-    }
-  }
-
-  private normalizeRemovalReason(removalReason: string): string {
-    const normalized = removalReason.trim();
-    return normalized.length > 0 ? normalized : DEFAULT_REMOVAL_REASON;
-  }
-
-  private normalizeRequiredRemovalReason(removalReason: string): string {
-    if (typeof removalReason !== "string" || removalReason.trim().length === 0) {
-      throw new DomainError("removal_reason is required.");
+    private getTotalCreatorsWaiting(): number {
+        return Array.from(this.creatorCohorts.values()).filter((membership) => !membership.removed_at).length;
     }
 
-    return removalReason.trim();
-  }
-
-  private normalizeCreatorId(creatorId: string): string {
-    if (typeof creatorId !== "string" || creatorId.trim().length === 0) {
-      throw new DomainError("creator_id is required.");
+    private getActiveMembershipsForCohort(cohortId: string): CreatorCohort[] {
+        return Array.from(this.creatorCohorts.values()).filter(
+            (membership) => membership.cohort_id === cohortId && !membership.removed_at
+        );
     }
 
-    return creatorId.trim();
-  }
+    private getActiveMembershipForCreator(creatorId: string): CreatorCohort | undefined {
+        return Array.from(this.creatorCohorts.values()).find(
+            (membership) => membership.creator_id === creatorId && !membership.removed_at
+        );
+    }
+
+    private removeCreatorMembership(membership: CreatorCohort, reason: string, removedAt: string): RemovedCreator {
+        membership.removed_at = removedAt;
+        membership.removal_reason = reason;
+
+        const creator = this.creators.get(membership.creator_id);
+        if (!creator) {
+            throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
+        }
+
+        this.removeCohortFromOrderIfEmpty(membership.cohort_id);
+
+        return {
+            ...creator,
+            creator_cohort: {...membership}
+        };
+    }
+
+    private removeCohortFromOrderIfEmpty(cohortId: string): void {
+        if (this.getActiveMembershipsForCohort(cohortId).length === 0) {
+            this.cohortOrder = this.cohortOrder.filter((currentCohortId) => currentCohortId !== cohortId);
+        }
+    }
+
+    private toCohortSummary(cohortId: string): CohortSummary {
+        const cohort = this.cohorts.get(cohortId);
+        if (!cohort) {
+            throw new DomainError(`Cohort ${cohortId} was not found.`, 500);
+        }
+
+        const activeMemberships = this.getActiveMembershipsForCohort(cohortId);
+        const creators = activeMemberships.map((membership) => {
+            const creator = this.creators.get(membership.creator_id);
+            if (!creator) {
+                throw new DomainError(`Creator ${membership.creator_id} was not found.`, 500);
+            }
+
+            return {...creator};
+        });
+
+        return {
+            ...cohort,
+            creator_count: activeMemberships.length,
+            creators
+        };
+    }
+
+    private assertPositiveInteger(value: number, field: string): void {
+        if (!Number.isInteger(value) || value <= 0) {
+            throw new DomainError(`${field} must be a positive integer.`);
+        }
+    }
+
+    private assertNonNegativeInteger(value: number, field: string): void {
+        if (!Number.isInteger(value) || value < 0) {
+            throw new DomainError(`${field} must be a non-negative integer.`);
+        }
+    }
+
+    private assertValidCreatorRequest(request: CreateCreatorRequest): void {
+        const requiredFields: Array<keyof CreateCreatorRequest> = [
+            "name",
+            "email_address",
+            "phone_number",
+            "course_type"
+        ];
+
+        for (const field of requiredFields) {
+            if (typeof request[field] !== "string" || request[field].trim().length === 0) {
+                throw new DomainError(`${field} is required.`);
+            }
+        }
+    }
+
+    private normalizeRemovalReason(removalReason: string): string {
+        const normalized = removalReason.trim();
+        return normalized.length > 0 ? normalized : DEFAULT_REMOVAL_REASON;
+    }
+
+    private normalizeRequiredRemovalReason(removalReason: string): string {
+        if (typeof removalReason !== "string" || removalReason.trim().length === 0) {
+            throw new DomainError("removal_reason is required.");
+        }
+
+        return removalReason.trim();
+    }
+
+    private normalizeCreatorId(creatorId: string): string {
+        if (typeof creatorId !== "string" || creatorId.trim().length === 0) {
+            throw new DomainError("creator_id is required.");
+        }
+
+        return creatorId.trim();
+    }
 }
 
 export const waitingListService = new WaitingListService();

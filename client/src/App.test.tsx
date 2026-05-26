@@ -1,245 +1,245 @@
-import { render, screen } from "@testing-library/react";
+import {render, screen} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MantineProvider } from "@mantine/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {MantineProvider} from "@mantine/core";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import App from "./App";
-import type { WaitingListResponse } from "./api";
+import type {WaitingListResponse} from "./api";
 
-const initialCreators = Array.from({ length: 13 }, (_, index) => ({
-  id: `creator_${index + 1}`,
-  name: `Creator ${index + 1}`,
-  email_address: `creator-${index + 1}@example.com`,
-  phone_number: `555-010${index}`,
-  course_type: index % 2 === 0 ? "analytics" : "workshop",
-  created_at: "2026-05-25T00:00:00.000Z"
+const initialCreators = Array.from({length: 13}, (_, index) => ({
+    id: `creator_${index + 1}`,
+    name: `Creator ${index + 1}`,
+    email_address: `creator-${index + 1}@example.com`,
+    phone_number: `555-010${index}`,
+    course_type: index % 2 === 0 ? "analytics" : "workshop",
+    created_at: "2026-05-25T00:00:00.000Z"
 }));
 
 const initialWaitingList: WaitingListResponse = {
-  capacity: 10,
-  total_creators_waiting: 13,
-  cohorts: [
-    {
-      id: "cohort_2",
-      name: "Cohort 2",
-      capacity: 10,
-      created_at: "2026-05-25T00:00:00.000Z",
-      creator_count: 3,
-      creators: initialCreators.slice(10)
-    },
-    {
-      id: "cohort_1",
-      name: "Cohort 1",
-      capacity: 10,
-      created_at: "2026-05-25T00:00:00.000Z",
-      creator_count: 10,
-      creators: initialCreators.slice(0, 10)
-    }
-  ]
+    capacity: 10,
+    total_creators_waiting: 13,
+    cohorts: [
+        {
+            id: "cohort_2",
+            name: "Cohort 2",
+            capacity: 10,
+            created_at: "2026-05-25T00:00:00.000Z",
+            creator_count: 3,
+            creators: initialCreators.slice(10)
+        },
+        {
+            id: "cohort_1",
+            name: "Cohort 1",
+            capacity: 10,
+            created_at: "2026-05-25T00:00:00.000Z",
+            creator_count: 10,
+            creators: initialCreators.slice(0, 10)
+        }
+    ]
 };
 
 const afterAddWaitingList: WaitingListResponse = {
-  ...initialWaitingList,
-  total_creators_waiting: 14,
-  cohorts: [
-    {
-      ...initialWaitingList.cohorts[0],
-      creator_count: 4,
-      creators: [
-        ...initialWaitingList.cohorts[0].creators,
+    ...initialWaitingList,
+    total_creators_waiting: 14,
+    cohorts: [
         {
-          id: "creator_14",
-          name: "Ada Lovelace",
-          email_address: "ada@example.com",
-          phone_number: "555-1234",
-          course_type: "analytics",
-          created_at: "2026-05-25T00:00:00.000Z"
-        }
-      ]
-    },
-    initialWaitingList.cohorts[1]
-  ]
+            ...initialWaitingList.cohorts[0],
+            creator_count: 4,
+            creators: [
+                ...initialWaitingList.cohorts[0].creators,
+                {
+                    id: "creator_14",
+                    name: "Ada Lovelace",
+                    email_address: "ada@example.com",
+                    phone_number: "555-1234",
+                    course_type: "analytics",
+                    created_at: "2026-05-25T00:00:00.000Z"
+                }
+            ]
+        },
+        initialWaitingList.cohorts[1]
+    ]
 };
 
 const afterTakeWaitingList: WaitingListResponse = {
-  ...initialWaitingList,
-  total_creators_waiting: 9,
-  cohorts: [
-    initialWaitingList.cohorts[0],
-    {
-      ...initialWaitingList.cohorts[1],
-      creator_count: 6,
-      creators: initialWaitingList.cohorts[1].creators.slice(4)
-    }
-  ]
+    ...initialWaitingList,
+    total_creators_waiting: 9,
+    cohorts: [
+        initialWaitingList.cohorts[0],
+        {
+            ...initialWaitingList.cohorts[1],
+            creator_count: 6,
+            creators: initialWaitingList.cohorts[1].creators.slice(4)
+        }
+    ]
 };
 
 const afterRemoveWaitingList: WaitingListResponse = {
-  ...initialWaitingList,
-  total_creators_waiting: 12,
-  cohorts: [
-    {
-      ...initialWaitingList.cohorts[0],
-      creator_count: 2,
-      creators: initialWaitingList.cohorts[0].creators.slice(1)
-    },
-    initialWaitingList.cohorts[1]
-  ]
+    ...initialWaitingList,
+    total_creators_waiting: 12,
+    cohorts: [
+        {
+            ...initialWaitingList.cohorts[0],
+            creator_count: 2,
+            creators: initialWaitingList.cohorts[0].creators.slice(1)
+        },
+        initialWaitingList.cohorts[1]
+    ]
 };
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(mockFetch));
+    vi.stubGlobal("fetch", vi.fn(mockFetch));
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+    vi.unstubAllGlobals();
 });
 
 describe("App", () => {
-  it("renders the waiting list and cohort visualization", async () => {
-    renderApp();
+    it("renders the waiting list and cohort visualization", async () => {
+        renderApp();
 
-    expect(await screen.findByText("13 waiting")).toBeInTheDocument();
-    expect(screen.getByText("Cohort 2")).toBeInTheDocument();
-    expect(screen.getByText("10 / 10")).toBeInTheDocument();
-    expect(screen.getByText("Creator 11")).toBeInTheDocument();
-    expect(screen.getByText("creator-11@example.com")).toBeInTheDocument();
-    expect(screen.getAllByText("analytics").length).toBeGreaterThan(0);
-    expect(screen.getByText("Next")).toBeInTheDocument();
-  });
+        expect(await screen.findByText("13 waiting")).toBeInTheDocument();
+        expect(screen.getByText("Cohort 2")).toBeInTheDocument();
+        expect(screen.getByText("10 / 10")).toBeInTheDocument();
+        expect(screen.getByText("Creator 11")).toBeInTheDocument();
+        expect(screen.getByText("creator-11@example.com")).toBeInTheDocument();
+        expect(screen.getAllByText("analytics").length).toBeGreaterThan(0);
+        expect(screen.getByText("Next")).toBeInTheDocument();
+    });
 
-  it("submits a creator and updates the waiting count", async () => {
-    const user = userEvent.setup();
-    renderApp();
+    it("submits a creator and updates the waiting count", async () => {
+        const user = userEvent.setup();
+        renderApp();
 
-    await screen.findByText("13 waiting");
+        await screen.findByText("13 waiting");
 
-    await user.type(screen.getByLabelText("Name 1"), "Ada Lovelace");
-    await user.type(screen.getByLabelText("Email 1"), "ada@example.com");
-    await user.type(screen.getByLabelText("Phone 1"), "555-1234");
-    await user.type(screen.getByLabelText("Course type 1"), "analytics");
-    await user.click(screen.getByRole("button", { name: "Add Creators" }));
+        await user.type(screen.getByLabelText("Name 1"), "Ada Lovelace");
+        await user.type(screen.getByLabelText("Email 1"), "ada@example.com");
+        await user.type(screen.getByLabelText("Phone 1"), "555-1234");
+        await user.type(screen.getByLabelText("Course type 1"), "analytics");
+        await user.click(screen.getByRole("button", {name: "Add Creators"}));
 
-    expect(await screen.findByText("1 creator added.")).toBeInTheDocument();
-    expect(screen.getByText("14 waiting")).toBeInTheDocument();
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("ada@example.com")).toBeInTheDocument();
-    expect(screen.getByText("555-1234")).toBeInTheDocument();
-  });
+        expect(await screen.findByText("1 creator added.")).toBeInTheDocument();
+        expect(screen.getByText("14 waiting")).toBeInTheDocument();
+        expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+        expect(screen.getByText("ada@example.com")).toBeInTheDocument();
+        expect(screen.getByText("555-1234")).toBeInTheDocument();
+    });
 
-  it("takes creators and shows recently removed rows", async () => {
-    const user = userEvent.setup();
-    renderApp();
+    it("takes creators and shows recently removed rows", async () => {
+        const user = userEvent.setup();
+        renderApp();
 
-    await screen.findByText("13 waiting");
-    await user.click(screen.getByRole("button", { name: "Take Creators" }));
+        await screen.findByText("13 waiting");
+        await user.click(screen.getByRole("button", {name: "Take Creators"}));
 
-    expect(await screen.findByText("4 creators taken.")).toBeInTheDocument();
-    expect(screen.getByText("9 waiting")).toBeInTheDocument();
-    expect(screen.getByText("Removed Creator")).toBeInTheDocument();
-  });
+        expect(await screen.findByText("4 creators taken.")).toBeInTheDocument();
+        expect(screen.getByText("9 waiting")).toBeInTheDocument();
+        expect(screen.getByText("Removed Creator")).toBeInTheDocument();
+    });
 
-  it("removes a displayed creator with a supplied reason", async () => {
-    const user = userEvent.setup();
-    renderApp();
+    it("removes a displayed creator with a supplied reason", async () => {
+        const user = userEvent.setup();
+        renderApp();
 
-    await screen.findByText("13 waiting");
-    await user.click(screen.getByRole("button", { name: "Remove Creator 11" }));
-    await user.type(await screen.findByLabelText("Removal reason"), "duplicate application");
-    await user.click(screen.getByRole("button", { name: "Remove Creator" }));
+        await screen.findByText("13 waiting");
+        await user.click(screen.getByRole("button", {name: "Remove Creator 11"}));
+        await user.type(await screen.findByLabelText("Removal reason"), "duplicate application");
+        await user.click(screen.getByRole("button", {name: "Remove Creator"}));
 
-    expect(await screen.findByText("Creator 11 removed.")).toBeInTheDocument();
-    expect(screen.getByText("12 waiting")).toBeInTheDocument();
-    expect(screen.getByText("2 / 10")).toBeInTheDocument();
-    expect(screen.getByText("duplicate application")).toBeInTheDocument();
-  });
+        expect(await screen.findByText("Creator 11 removed.")).toBeInTheDocument();
+        expect(screen.getByText("12 waiting")).toBeInTheDocument();
+        expect(screen.getByText("2 / 10")).toBeInTheDocument();
+        expect(screen.getByText("duplicate application")).toBeInTheDocument();
+    });
 });
 
 function renderApp() {
-  return render(
-    <MantineProvider>
-      <App />
-    </MantineProvider>
-  );
+    return render(
+        <MantineProvider>
+            <App/>
+        </MantineProvider>
+    );
 }
 
 function mockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const url = String(input);
-  const method = init?.method ?? "GET";
+    const url = String(input);
+    const method = init?.method ?? "GET";
 
-  if (url === "/api/waiting-list" && method === "GET") {
-    return jsonResponse(initialWaitingList);
-  }
+    if (url === "/api/waiting-list" && method === "GET") {
+        return jsonResponse(initialWaitingList);
+    }
 
-  if (url === "/api/waiting-list/creators" && method === "POST") {
-    return jsonResponse({
-      added_creators: [
-        {
-          id: "creator_14",
-          name: "Ada Lovelace",
-          email_address: "ada@example.com",
-          phone_number: "555-1234",
-          course_type: "analytics",
-          created_at: "2026-05-25T00:00:00.000Z"
-        }
-      ],
-      waiting_list: afterAddWaitingList
-    });
-  }
+    if (url === "/api/waiting-list/creators" && method === "POST") {
+        return jsonResponse({
+            added_creators: [
+                {
+                    id: "creator_14",
+                    name: "Ada Lovelace",
+                    email_address: "ada@example.com",
+                    phone_number: "555-1234",
+                    course_type: "analytics",
+                    created_at: "2026-05-25T00:00:00.000Z"
+                }
+            ],
+            waiting_list: afterAddWaitingList
+        });
+    }
 
-  if (url === "/api/waiting-list/take" && method === "POST") {
-    return jsonResponse({
-      removed_count: 4,
-      removed_creators: [
-        {
-          id: "creator_1",
-          name: "Removed Creator",
-          email_address: "removed@example.com",
-          phone_number: "555-0000",
-          course_type: "workshop",
-          created_at: "2026-05-25T00:00:00.000Z",
-          creator_cohort: {
-            id: "creator_cohort_1",
-            creator_id: "creator_1",
-            cohort_id: "cohort_1",
-            added_at: "2026-05-25T00:00:00.000Z",
-            created_at: "2026-05-25T00:00:00.000Z",
-            removed_at: "2026-05-25T00:00:00.000Z",
-            removal_reason: "onboarded"
-          }
-        }
-      ],
-      waiting_list: afterTakeWaitingList
-    });
-  }
+    if (url === "/api/waiting-list/take" && method === "POST") {
+        return jsonResponse({
+            removed_count: 4,
+            removed_creators: [
+                {
+                    id: "creator_1",
+                    name: "Removed Creator",
+                    email_address: "removed@example.com",
+                    phone_number: "555-0000",
+                    course_type: "workshop",
+                    created_at: "2026-05-25T00:00:00.000Z",
+                    creator_cohort: {
+                        id: "creator_cohort_1",
+                        creator_id: "creator_1",
+                        cohort_id: "cohort_1",
+                        added_at: "2026-05-25T00:00:00.000Z",
+                        created_at: "2026-05-25T00:00:00.000Z",
+                        removed_at: "2026-05-25T00:00:00.000Z",
+                        removal_reason: "onboarded"
+                    }
+                }
+            ],
+            waiting_list: afterTakeWaitingList
+        });
+    }
 
-  if (url === "/api/waiting-list/creators/creator_11/remove" && method === "POST") {
-    return jsonResponse({
-      removed_creator: {
-        ...initialCreators[10],
-        creator_cohort: {
-          id: "creator_cohort_11",
-          creator_id: "creator_11",
-          cohort_id: "cohort_2",
-          added_at: "2026-05-25T00:00:00.000Z",
-          created_at: "2026-05-25T00:00:00.000Z",
-          removed_at: "2026-05-25T00:00:00.000Z",
-          removal_reason: "duplicate application"
-        }
-      },
-      waiting_list: afterRemoveWaitingList
-    });
-  }
+    if (url === "/api/waiting-list/creators/creator_11/remove" && method === "POST") {
+        return jsonResponse({
+            removed_creator: {
+                ...initialCreators[10],
+                creator_cohort: {
+                    id: "creator_cohort_11",
+                    creator_id: "creator_11",
+                    cohort_id: "cohort_2",
+                    added_at: "2026-05-25T00:00:00.000Z",
+                    created_at: "2026-05-25T00:00:00.000Z",
+                    removed_at: "2026-05-25T00:00:00.000Z",
+                    removal_reason: "duplicate application"
+                }
+            },
+            waiting_list: afterRemoveWaitingList
+        });
+    }
 
-  return Promise.resolve(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+    return Promise.resolve(new Response(JSON.stringify({message: "Not found"}), {status: 404}));
 }
 
 function jsonResponse(body: unknown): Promise<Response> {
-  return Promise.resolve(
-    new Response(JSON.stringify(body), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    })
-  );
+    return Promise.resolve(
+        new Response(JSON.stringify(body), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+    );
 }
