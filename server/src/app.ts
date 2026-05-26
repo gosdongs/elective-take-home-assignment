@@ -54,6 +54,13 @@ export function createApp() {
 }
 
 const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
+    if (isMalformedJsonError(error)) {
+        response.status(400).json({
+            message: "Malformed JSON request body."
+        });
+        return;
+    }
+
     if (error instanceof ValidateError) {
         response.status(422).json({
             message: "Validation failed.",
@@ -79,6 +86,11 @@ const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) =
         message: "Unexpected server error."
     });
 };
+
+function isMalformedJsonError(error: unknown): error is SyntaxError & {status?: number; type?: string} {
+    const jsonError = error as SyntaxError & {status?: number; type?: string};
+    return error instanceof SyntaxError && "body" in error && jsonError.status === 400 && jsonError.type === "entity.parse.failed";
+}
 
 function getOpenApiPath(): string {
     if (fs.existsSync(generatedOpenApiPath)) {
