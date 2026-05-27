@@ -28,6 +28,16 @@ The React app runs on `http://localhost:5173` and proxies `/api` requests to the
 
 There is intentionally no root `dev` script that starts both apps together. Run only the workspace you need while developing, or run both manually when testing the full UI flow.
 
+## Tech Stack
+
+- Runtime: Node.js `22.14.0`
+- Language: TypeScript
+- Frontend: Vite, React, Mantine, Sass, lucide-react
+- Backend: Express, tsoa, Swagger UI
+- Data storage: in-memory maps and arrays
+- Testing: Vitest, React Testing Library, Supertest
+- Project structure: npm workspaces with separate `client` and `server` folders
+
 ## API Error and Edge Case Strategy
 
 For the current in-memory V1 scope, the API handles the obvious request and business-rule edge cases.

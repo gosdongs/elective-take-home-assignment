@@ -1,9 +1,10 @@
-import express, {type ErrorRequestHandler, type Request, type Response} from "express";
+import express, {type ErrorRequestHandler, type NextFunction, type Request, type Response} from "express";
 import fs from "node:fs";
 import path from "node:path";
 import swaggerUi from "swagger-ui-express";
 import {ValidateError} from "tsoa";
 import {RegisterRoutes} from "./generated/routes";
+import {logError, logInfo, logWarn} from "./logger";
 import {DomainError} from "./services/DomainError";
 
 const generatedOpenApiPath = path.resolve(__dirname, "generated/openapi.json");
@@ -13,6 +14,7 @@ const clientDistPath = path.resolve(__dirname, "../../client/dist");
 export function createApp() {
     const app = express();
 
+    app.use(apiRequestLogger);
     app.use(express.json());
 
     app.get("/api/openapi.json", (_request: Request, response: Response) => {
@@ -53,8 +55,40 @@ export function createApp() {
     return app;
 }
 
+function apiRequestLogger(request: Request, response: Response, next: NextFunction): void {
+    if (!request.path.startsWith("/api")) {
+        next();
+        return;
+    }
+
+    const startedAt = Date.now();
+    response.on("finish", () => {
+        const details = {
+            method: request.method,
+            path: request.originalUrl,
+            status: response.statusCode,
+            duration_ms: Date.now() - startedAt
+        };
+
+        if (response.statusCode >= 500) {
+            logError("api_request_failed", details);
+            return;
+        }
+
+        if (response.statusCode >= 400) {
+            logWarn("api_request_rejected", details);
+            return;
+        }
+
+        logInfo("api_request_completed", details);
+    });
+
+    next();
+}
+
 const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
     if (isMalformedJsonError(error)) {
+        logWarn("api_error", {status: 400, type: "malformed_json"});
         response.status(400).json({
             message: "Malformed JSON request body."
         });
@@ -62,6 +96,7 @@ const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) =
     }
 
     if (error instanceof ValidateError) {
+        logWarn("api_error", {status: 422, type: "validation"});
         response.status(422).json({
             message: "Validation failed.",
             details: error.fields
@@ -70,6 +105,8 @@ const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) =
     }
 
     if (error instanceof DomainError) {
+        const log = error.status >= 500 ? logError : logWarn;
+        log("api_error", {status: error.status, type: "domain", message: error.message});
         response.status(error.status).json({
             message: error.message,
             details: error.details
@@ -82,6 +119,11 @@ const apiErrorHandler: ErrorRequestHandler = (error, _request, response, next) =
         return;
     }
 
+    logError("api_error", {
+        status: 500,
+        type: "unexpected",
+        message: error instanceof Error ? error.message : "Unknown error"
+    });
     response.status(500).json({
         message: "Unexpected server error."
     });

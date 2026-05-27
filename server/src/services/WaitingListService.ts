@@ -9,6 +9,7 @@ import type {
     WaitingListResponse
 } from "../models/api";
 import type {Cohort, Creator, CreatorCohort} from "../models/domain";
+import {logInfo} from "../logger";
 import {DomainError} from "./DomainError";
 
 const DEFAULT_CAPACITY = 10;
@@ -40,6 +41,7 @@ export class WaitingListService {
         this.cohortSequence = 1;
         this.creatorCohortSequence = 1;
 
+        logInfo("waiting_list_reset", {capacity});
         return this.getWaitingList();
     }
 
@@ -60,6 +62,13 @@ export class WaitingListService {
             this.addCreatorToCohort(creator.id, cohort.id);
             addedCreators.push(creator);
         }
+
+        logInfo("creators_added", {
+            requested_count: requests.length,
+            added_count: addedCreators.length,
+            total_waiting: this.getTotalCreatorsWaiting(),
+            cohort_count: this.cohortOrder.length
+        });
 
         return {
             added_creators: addedCreators,
@@ -87,6 +96,13 @@ export class WaitingListService {
             remainingToRemove -= removeCount;
         }
 
+        logInfo("creators_taken", {
+            requested_count: count,
+            removed_count: removedCreators.length,
+            total_waiting: this.getTotalCreatorsWaiting(),
+            cohort_count: this.cohortOrder.length
+        });
+
         return {
             removed_count: removedCreators.length,
             removed_creators: removedCreators,
@@ -104,6 +120,13 @@ export class WaitingListService {
         }
 
         const removedCreator = this.removeCreatorMembership(membership, reason, new Date().toISOString());
+
+        logInfo("creator_removed", {
+            creator_id: normalizedCreatorId,
+            cohort_id: membership.cohort_id,
+            total_waiting: this.getTotalCreatorsWaiting(),
+            cohort_count: this.cohortOrder.length
+        });
 
         return {
             removed_creator: removedCreator,
@@ -154,6 +177,7 @@ export class WaitingListService {
         this.cohorts.set(cohort.id, cohort);
         this.cohortOrder.unshift(cohort.id);
 
+        logInfo("cohort_created", {cohort_id: cohort.id, capacity: cohort.capacity});
         return cohort;
     }
 
@@ -217,6 +241,7 @@ export class WaitingListService {
     private removeCohortFromOrderIfEmpty(cohortId: string): void {
         if (this.getActiveMembershipsForCohort(cohortId).length === 0) {
             this.cohortOrder = this.cohortOrder.filter((currentCohortId) => currentCohortId !== cohortId);
+            logInfo("cohort_removed_empty", {cohort_id: cohortId});
         }
     }
 

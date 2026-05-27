@@ -1,27 +1,5 @@
 import {FormEvent, useEffect, useMemo, useState} from "react";
-import {
-    ActionIcon,
-    Alert,
-    Badge,
-    Box,
-    Button,
-    Container,
-    Divider,
-    Group,
-    Loader,
-    Modal,
-    NumberInput,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Table,
-    Text,
-    Textarea,
-    TextInput,
-    Title,
-    Tooltip
-} from "@mantine/core";
-import {Plus, RotateCcw, Send, Trash2, UserPlus, Users} from "lucide-react";
+import {Box, Container, Stack} from "@mantine/core";
 import {
     addCreators,
     createWaitingList,
@@ -33,12 +11,15 @@ import {
     type RemovedCreator,
     type WaitingListResponse
 } from "./api";
+import {AddCreatorsPanel} from "./components/AddCreatorsPanel";
+import {CohortsPanel} from "./components/CohortsPanel";
+import {PageHeader} from "./components/PageHeader";
+import {RecentlyRemovedPanel} from "./components/RecentlyRemovedPanel";
+import {RemoveCreatorModal, type CreatorRemovalTarget} from "./components/RemoveCreatorModal";
+import {StatusAlerts} from "./components/StatusAlerts";
+import {WaitingListControls} from "./components/WaitingListControls";
 
 type CreatorFormRow = CreatorInput;
-type CreatorRemovalTarget = {
-    creator: Creator;
-    cohortName: string;
-};
 
 const emptyCreatorRow: CreatorFormRow = {
     name: "",
@@ -188,277 +169,48 @@ function App() {
 
     return (
         <Box className="app-shell">
-            <Modal
-                opened={creatorRemovalTarget !== null}
+            <RemoveCreatorModal
+                isLoading={isLoading}
                 onClose={closeRemoveCreatorDialog}
-                title="Remove Creator"
-                centered
-                radius="sm"
-            >
-                <form onSubmit={handleRemoveCreator}>
-                    <Stack gap="md">
-                        <Box>
-                            <Text fw={700}>{creatorRemovalTarget?.creator.name}</Text>
-                            <Text size="sm" c="dimmed">
-                                {creatorRemovalTarget?.cohortName}
-                            </Text>
-                        </Box>
-                        <Textarea
-                            label="Removal reason"
-                            aria-label="Removal reason"
-                            value={creatorRemovalReason}
-                            error={creatorRemovalReasonError}
-                            minRows={3}
-                            required
-                            onChange={(event) => {
-                                setCreatorRemovalReason(event.currentTarget.value);
-                                setCreatorRemovalReasonError(null);
-                            }}
-                        />
-                        <Group justify="flex-end">
-                            <Button type="button" variant="default" onClick={closeRemoveCreatorDialog}
-                                    disabled={isLoading}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" color="red" leftSection={<Trash2 size={16}/>} loading={isLoading}>
-                                Remove Creator
-                            </Button>
-                        </Group>
-                    </Stack>
-                </form>
-            </Modal>
+                onReasonChange={(reason) => {
+                    setCreatorRemovalReason(reason);
+                    setCreatorRemovalReasonError(null);
+                }}
+                onSubmit={handleRemoveCreator}
+                reason={creatorRemovalReason}
+                reasonError={creatorRemovalReasonError}
+                target={creatorRemovalTarget}
+            />
 
             <Container size="xl" py="xl">
                 <Stack gap="lg">
-                    <Group justify="space-between" align="flex-end" gap="md" className="page-header">
-                        <Box>
-                            <Title order={1}>Cohort Management</Title>
-                            <Text c="dimmed">Course creator onboarding queue</Text>
-                        </Box>
-                        <Badge size="xl" radius="sm" leftSection={<Users size={16}/>}>
-                            {totalWaiting} waiting
-                        </Badge>
-                    </Group>
-
-                    {error ? (
-                        <Alert color="red" title="Action needed" radius="sm">
-                            {error}
-                        </Alert>
-                    ) : null}
-
-                    {message ? (
-                        <Alert color="teal" title="Updated" radius="sm">
-                            {message}
-                        </Alert>
-                    ) : null}
-
-                    <SimpleGrid cols={{base: 1, md: 3}} spacing="lg">
-                        <Paper className="control-panel" withBorder radius="sm" p="md">
-                            <form onSubmit={handleCreateWaitingList}>
-                                <Stack gap="md">
-                                    <Group justify="space-between">
-                                        <Title order={2}>Waiting List</Title>
-                                        {isLoading ? <Loader size="sm"/> : null}
-                                    </Group>
-                                    <NumberInput
-                                        label="Capacity"
-                                        min={1}
-                                        allowDecimal={false}
-                                        value={capacity}
-                                        onChange={setCapacity}
-                                    />
-                                    <Button type="submit" leftSection={<RotateCcw size={16}/>} variant="light">
-                                        Reset List
-                                    </Button>
-                                </Stack>
-                            </form>
-                        </Paper>
-
-                        <Paper className="control-panel" withBorder radius="sm" p="md">
-                            <form onSubmit={handleTakeCreators}>
-                                <Stack gap="md">
-                                    <Title order={2}>Onboard</Title>
-                                    <NumberInput
-                                        label="Take count"
-                                        min={0}
-                                        allowDecimal={false}
-                                        value={takeCount}
-                                        onChange={setTakeCount}
-                                    />
-                                    <Button type="submit" leftSection={<Send size={16}/>}>
-                                        Take Creators
-                                    </Button>
-                                </Stack>
-                            </form>
-                        </Paper>
-
-                        <Paper className="metric-panel" withBorder radius="sm" p="md">
-                            <Stack gap="sm">
-                                <Text size="sm" c="dimmed">
-                                    Current cohorts
-                                </Text>
-                                <Title order={2}>{cohorts.length}</Title>
-                                <Text size="sm" c="dimmed">
-                                    Counts [{cohortCounts.join(", ") || "empty"}]
-                                </Text>
-                            </Stack>
-                        </Paper>
-                    </SimpleGrid>
-
-                    <Paper className="cohort-panel" withBorder radius="sm" p="md">
-                        <Stack gap="md">
-                            <Group justify="space-between">
-                                <Title order={2}>Cohorts</Title>
-                                <Badge variant="light" color="gray" radius="sm">
-                                    Capacity {waitingList?.capacity ?? 10}
-                                </Badge>
-                            </Group>
-                            {cohorts.length > 0 ? (
-                                <div className="cohort-strip" aria-label="Cohorts ordered newest to oldest">
-                                    {cohorts.map((cohort, index) => {
-                                        const isOldest = index === cohorts.length - 1;
-                                        return (
-                                            <div className={`cohort-tile${isOldest ? " cohort-tile--oldest" : ""}`}
-                                                 key={cohort.id}>
-                                                <Group justify="space-between" align="center" wrap="nowrap">
-                                                    <Text fw={700}>{cohort.name}</Text>
-                                                </Group>
-                                                <Text className="cohort-count">{cohort.creator_count}</Text>
-                                                <Text size="sm" c="dimmed">
-                                                    {cohort.creator_count} / {cohort.capacity}
-                                                </Text>
-                                                {cohort.creators.length > 0 ? (
-                                                    <Stack gap={6} className="cohort-creators">
-                                                        {cohort.creators.map((creator) => (
-                                                            <Box className="cohort-creator" key={creator.id}>
-                                                                <Box className="cohort-creator-details">
-                                                                    <Text size="sm" fw={700} truncate="end">
-                                                                        {creator.name}
-                                                                    </Text>
-                                                                    <Text size="xs" c="dimmed" truncate="end">
-                                                                        {creator.course_type}
-                                                                    </Text>
-                                                                    <Text size="xs" c="dimmed" truncate="end">
-                                                                        {creator.email_address}
-                                                                    </Text>
-                                                                    <Text size="xs" c="dimmed" truncate="end">
-                                                                        {creator.phone_number}
-                                                                    </Text>
-                                                                </Box>
-                                                                <Tooltip label={`Remove ${creator.name}`}>
-                                                                    <ActionIcon
-                                                                        aria-label={`Remove ${creator.name}`}
-                                                                        variant="subtle"
-                                                                        color="red"
-                                                                        size="sm"
-                                                                        disabled={isLoading}
-                                                                        onClick={() => openRemoveCreatorDialog(creator, cohort.name)}
-                                                                    >
-                                                                        <Trash2 size={15}/>
-                                                                    </ActionIcon>
-                                                                </Tooltip>
-                                                            </Box>
-                                                        ))}
-                                                    </Stack>
-                                                ) : null}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <Box className="empty-state">No creators waiting</Box>
-                            )}
-                        </Stack>
-                    </Paper>
-
-                    <Paper className="control-panel" withBorder radius="sm" p="md">
-                        <form onSubmit={handleAddCreators}>
-                            <Stack gap="md">
-                                <Group justify="space-between">
-                                    <Title order={2}>Add Creators</Title>
-                                    <Button type="button" variant="light" leftSection={<Plus size={16}/>}
-                                            onClick={addCreatorRow}>
-                                        Add Row
-                                    </Button>
-                                </Group>
-
-                                <Stack gap="sm">
-                                    {creatorRows.map((row, index) => (
-                                        <SimpleGrid className="creator-row" cols={{base: 1, md: 5}} spacing="sm"
-                                                    key={index}>
-                                            <TextInput
-                                                label={`Name ${index + 1}`}
-                                                value={row.name}
-                                                onChange={(event) => updateCreatorRow(index, "name", event.currentTarget.value)}
-                                            />
-                                            <TextInput
-                                                label={`Email ${index + 1}`}
-                                                value={row.email_address}
-                                                onChange={(event) => updateCreatorRow(index, "email_address", event.currentTarget.value)}
-                                            />
-                                            <TextInput
-                                                label={`Phone ${index + 1}`}
-                                                value={row.phone_number}
-                                                onChange={(event) => updateCreatorRow(index, "phone_number", event.currentTarget.value)}
-                                            />
-                                            <TextInput
-                                                label={`Course type ${index + 1}`}
-                                                value={row.course_type}
-                                                onChange={(event) => updateCreatorRow(index, "course_type", event.currentTarget.value)}
-                                            />
-                                            <Group align="flex-end">
-                                                <Tooltip label="Remove row">
-                                                    <ActionIcon
-                                                        aria-label={`Remove creator row ${index + 1}`}
-                                                        variant="subtle"
-                                                        color="red"
-                                                        size="lg"
-                                                        disabled={creatorRows.length === 1}
-                                                        onClick={() => removeCreatorRow(index)}
-                                                    >
-                                                        <Trash2 size={18}/>
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
-                                        </SimpleGrid>
-                                    ))}
-                                </Stack>
-
-                                <Button type="submit" leftSection={<UserPlus size={16}/>} className="submit-button">
-                                    Add Creators
-                                </Button>
-                            </Stack>
-                        </form>
-                    </Paper>
-
-                    <Paper className="control-panel" withBorder radius="sm" p="md">
-                        <Stack gap="md">
-                            <Title order={2}>Recently Removed</Title>
-                            <Divider/>
-                            {recentlyRemoved.length > 0 ? (
-                                <Table striped highlightOnHover>
-                                    <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>Name</Table.Th>
-                                            <Table.Th>Email</Table.Th>
-                                            <Table.Th>Reason</Table.Th>
-                                        </Table.Tr>
-                                    </Table.Thead>
-                                    <Table.Tbody>
-                                        {recentlyRemoved.map((creator) => (
-                                            <Table.Tr key={creator.creator_cohort.id}>
-                                                <Table.Td>{creator.name}</Table.Td>
-                                                <Table.Td>{creator.email_address}</Table.Td>
-                                                <Table.Td>{creator.creator_cohort.removal_reason}</Table.Td>
-                                            </Table.Tr>
-                                        ))}
-                                    </Table.Tbody>
-                                </Table>
-                            ) : (
-                                <Box className="empty-state">No recent removals</Box>
-                            )}
-                        </Stack>
-                    </Paper>
+                    <PageHeader totalWaiting={totalWaiting}/>
+                    <StatusAlerts error={error} message={message}/>
+                    <WaitingListControls
+                        capacity={capacity}
+                        cohortCounts={cohortCounts}
+                        cohortTotal={cohorts.length}
+                        isLoading={isLoading}
+                        onCapacityChange={setCapacity}
+                        onCreateWaitingList={handleCreateWaitingList}
+                        onTakeCountChange={setTakeCount}
+                        onTakeCreators={handleTakeCreators}
+                        takeCount={takeCount}
+                    />
+                    <CohortsPanel
+                        capacity={waitingList?.capacity ?? 10}
+                        cohorts={cohorts}
+                        isLoading={isLoading}
+                        onRemoveCreator={openRemoveCreatorDialog}
+                    />
+                    <AddCreatorsPanel
+                        creatorRows={creatorRows}
+                        onAddRow={addCreatorRow}
+                        onRemoveRow={removeCreatorRow}
+                        onSubmit={handleAddCreators}
+                        onUpdateRow={updateCreatorRow}
+                    />
+                    <RecentlyRemovedPanel recentlyRemoved={recentlyRemoved}/>
                 </Stack>
             </Container>
         </Box>
