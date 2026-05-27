@@ -1,0 +1,132 @@
+$ink: #17212b;
+$muted: #5b6572;
+$surface: #ffffff;
+$line: #d9dee5;
+$teal: #0f766e;
+$coral: #d97757;
+$indigo: #4355b9;
+
+:root {
+  color: $ink;
+  background: #f6f7f9;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: $ink;
+  background: linear-gradient(180deg, rgba(67, 85, 185, 0.08), rgba(67, 85, 185, 0) 240px),
+  #f6f7f9;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.page-header {
+  min-height: 72px;
+}
+
+.control-panel,
+.metric-panel,
+.cohort-panel {
+  background: $surface;
+  border-color: $line;
+}
+
+.metric-panel {
+  border-left: 4px solid $teal;
+}
+
+.cohort-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.cohort-tile {
+  min-height: 220px;
+  border: 1px solid $line;
+  border-top: 4px solid $indigo;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfd;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cohort-tile--oldest {
+  border-top-color: $coral;
+  background: #fffaf7;
+}
+
+.cohort-count {
+  font-size: 2.5rem;
+  line-height: 1;
+  font-weight: 800;
+  color: $ink;
+}
+
+.cohort-creators {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.cohort-creator {
+  border-top: 1px solid $line;
+  padding-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cohort-creator-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.creator-row {
+  align-items: end;
+  border: 1px solid $line;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfd;
+}
+
+.submit-button {
+  align-self: flex-start;
+}
+
+.empty-state {
+  min-height: 96px;
+  border: 1px dashed $line;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: $muted;
+  background: #fbfcfd;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .cohort-strip {
+    grid-auto-columns: minmax(240px, 82vw);
+  }
+
+  .cohort-count {
+    font-size: 2.125rem;
+  }
+}
