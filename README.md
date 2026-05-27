@@ -28,6 +28,57 @@ The React app runs on `http://localhost:5173` and proxies `/api` requests to the
 
 There is intentionally no root `dev` script that starts both apps together. Run only the workspace you need while developing, or run both manually when testing the full UI flow.
 
+## Testing the API with curl
+
+With the backend running on `http://localhost:3000`, run these commands to exercise the main waiting list flow:
+
+```bash
+API_URL=http://localhost:3000/api
+
+curl -i -X POST "$API_URL/waiting-list" \
+  -H "Content-Type: application/json" \
+  -d '{"capacity":2}'
+
+curl -i -X POST "$API_URL/waiting-list/creators" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "creators": [
+      {
+        "name": "Ada Lovelace",
+        "email_address": "ada@example.com",
+        "phone_number": "555-0101",
+        "course_type": "workshop"
+      },
+      {
+        "name": "Grace Hopper",
+        "email_address": "grace@example.com",
+        "phone_number": "555-0102",
+        "course_type": "cohort"
+      },
+      {
+        "name": "Katherine Johnson",
+        "email_address": "katherine@example.com",
+        "phone_number": "555-0103",
+        "course_type": "workshop"
+      }
+    ]
+  }'
+
+curl -i "$API_URL/waiting-list"
+
+curl -i "$API_URL/waiting-list/count"
+
+curl -i -X POST "$API_URL/waiting-list/creators/creator_2/remove" \
+  -H "Content-Type: application/json" \
+  -d '{"removal_reason":"duplicate application"}'
+
+curl -i -X POST "$API_URL/waiting-list/take" \
+  -H "Content-Type: application/json" \
+  -d '{"count":1,"removal_reason":"onboarded"}'
+
+curl -i "$API_URL/waiting-list"
+```
+
 ## Tech Stack
 
 - Runtime: Node.js `22.14.0`
